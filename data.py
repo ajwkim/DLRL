@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import torch
-from torchvision import datasets, transforms
 from torch.utils.data import TensorDataset, DataLoader
 T, F = True, False
 path = '/Users/jwkim/Documents/data'
@@ -48,12 +47,13 @@ def getCaliforniaHousing():
 
 
 def getMNIST():     # val_ratio=.2, batch_size=256
-    trn = datasets.MNIST(path, train=T, download=T, 
-                         transform=transforms.Compose([transforms.ToTensor()])
-                         )
-    tst = datasets.MNIST(path, train=F, download=T,
-                         transform=transforms.Compose([transforms.ToTensor()])
-                         )
+    from torchvision import datasets, transforms
+    trn = datasets.MNIST(
+        path, train=T, download=T, 
+        transform=transforms.Compose([transforms.ToTensor()]))
+    tst = datasets.MNIST(
+        path, train=F, download=T,
+        transform=transforms.Compose([transforms.ToTensor()]))
     # trn.data : (60000, 28, 28) 0~255 / trn.targets : (60000,), 0~9
     # tst.data : (10000, 28, 28)       / tst.targets : (10000,)
     Xtrn, ytrn = trn.data / 255, trn.targets.unsqueeze(1)           # reshape(len(trn.data), -1)

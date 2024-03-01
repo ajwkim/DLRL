@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import torch
+from torch import nn, optim
 T, F = True, False
 
 def elapsed(t0):
@@ -28,15 +29,15 @@ def plot_loss_and_acc(trnlosses, vallosses, trnaccs, valaccs):
     plt.show();
 
 class Regressor:
-    def __init__(self, model, optimizer, criterion, device='cpu'):
+    def __init__(self, model, lr=1e-3, device='cpu'):
         self.model = model
-        self.optimizer = optimizer
-        self.criterion = criterion
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        self.criterion = nn.MSELoss()   # nn.functional.mse_loss
         self.device = device
         self.model.to(device)
 
     def train(self, loader, train=T):
-        if train:   self.model.train()
+        self.model.train() if train else self.model.eval()
         total_loss = 0
         for Xi, yi in loader:
             yhati = self.model(Xi)
@@ -46,11 +47,9 @@ class Regressor:
                 loss.backward()
                 self.optimizer.step()
             total_loss += float(loss)
-        total_loss /= len(loader)
-        return total_loss
+        return total_loss / len(loader)
     
     def eval(self, loader):
-        self.model.eval()
         with torch.no_grad():
             return self.train(loader, train=F)
         
@@ -95,10 +94,11 @@ class Regressor:
                 yhat.append(yhati)
                 y.append(yi)
         total_loss /= len(loader)
-        yhat, y = torch.cat(yhat), torch.cat(y)
+        print(f'TestLoss={total_loss:.4e}')
+        y, yhat = torch.cat(y), torch.cat(yhat)
         df = pd.DataFrame(
             torch.cat([y, yhat], dim=-1).numpy(), columns='y yhat'.split())
-        sns.pairplot(df, height=5);
+        sns.pairplot(df);   # height=5
 
 
 class Classifier:

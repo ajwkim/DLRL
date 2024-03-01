@@ -4,13 +4,17 @@ from torch import nn
 T, F = True, False
 
 def BlockLinear(indim, outdim):
-    return nn.Sequential(nn.Linear(indim, outdim),  nn.ReLU())
+    return (nn.Linear(indim, outdim),   nn.ReLU(),
+            nn.Linear(outdim, outdim),   nn.ReLU())
 
 def linear_regressor(indim, outdim, dim_step=-1):
     dims = list(range(indim, outdim - dim_step, dim_step))
-    blocks = (BlockLinear(ind, outd) for ind, outd in zip(dims, dims[1:]))
-    model = nn.Sequential(*blocks)
-    return nn.Sequential(model, nn.Linear(dims[-1], outdim))
+    blocks = tuple()
+    for ind, outd in zip(dims, dims[1:]):
+        blocks += BlockLinear(ind, outd)
+    model = nn.Sequential(*blocks, nn.Linear(dims[-1], outdim))
+    print(model)
+    return model
 
 
 def BlockConv(in_channel, out_channel):
