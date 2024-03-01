@@ -73,7 +73,6 @@ class Regressor:
             elif early_stop and e - best_epoch > early_stop:
                 print(f'Epoch {e+1:{n}d}: No improvement during last {early_stop} epochs')
                 break
-        # print(f'Min ValLoss from epoch {best_epoch + 1}')
         print(f'\nEpoch {best_epoch+1:{n}d}: TrnLoss {trnhistory[best_epoch]:.4e} '
               f'ValLoss {valhistory[best_epoch]:.4e} (min)')
         self.model.load_state_dict(best_model)
