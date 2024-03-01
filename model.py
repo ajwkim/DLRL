@@ -3,14 +3,14 @@ import torch
 from torch import nn
 T, F = True, False
 
-def BlockLinear(indim, outdim, leaky=F):
+def LinearBlock(indim, outdim, leaky=F):
     return [nn.Linear(indim, outdim),   nn.LeakyReLU() if leaky else nn.ReLU()]
 
-def linear_regressor(indim, outdim, dim_step=-1, leaky=F):
-    dims = [indim] + [n for n in range(indim-2, outdim+1, dim_step)]
+def linear_model(indim, outdim, hiddens, leaky=F):
+    dims = [indim] + hiddens
     blocks = []
     for ind, outd in zip(dims, dims[1:]):
-        blocks += BlockLinear(ind, outd, leaky)
+        blocks += LinearBlock(ind, outd, leaky)
     model = nn.Sequential(*blocks, nn.Linear(dims[-1], outdim))
     print('model:', model)
     return model

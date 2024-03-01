@@ -55,6 +55,7 @@ class Regressor:
         
     def run(self, trnloader, valloader, n_epoch, n_print=None, early_stop=None,
             plot_from=10):
+        t0 = time.time()
         n = len(str(n_epoch))
         best_model, best_epoch, minloss = None, np.inf, np.inf
         trnhistory, valhistory = [], []
@@ -64,16 +65,16 @@ class Regressor:
             trnhistory.append(trnloss)
             valhistory.append(valloss)
             if n_print and (e + 1) % n_print == 0:
-                print(f'Epoch {e+1:{n}d}: TrnLoss {trnloss:.4e} '
-                      f'ValLoss {valloss:.4e} MinLoss {minloss:.4e}')
+                print(f'Epoch {e+1:{n}d}: TrnLoss {trnloss:.4e}, '
+                      f'ValLoss {valloss:.4e}, MinLoss {minloss:.4e} ({elapsed(t0)})')
             if valloss < minloss:
                 minloss = valloss
                 best_epoch, best_model = e, copy.deepcopy(self.model.state_dict())
             elif early_stop and e - best_epoch > early_stop:
                 print(f'Epoch {e+1:{n}d}: No improvement during last {early_stop} epochs')
                 break
-        print(f'\nEpoch {best_epoch+1:{n}d}: TrnLoss {trnhistory[best_epoch]:.4e} '
-              f'ValLoss {valhistory[best_epoch]:.4e} (min)')
+        print(f'\nEpoch {best_epoch+1:{n}d}: TrnLoss {trnhistory[best_epoch]:.4e}, '
+              f'ValLoss {valhistory[best_epoch]:.4e} ({elapsed(t0)})')
         self.model.load_state_dict(best_model)
         plt.plot(range(plot_from, len(trnhistory)), trnhistory[plot_from:], label='Trn')
         plt.plot(range(plot_from, len(valhistory)), valhistory[plot_from:], label='Val')
@@ -85,6 +86,7 @@ class Regressor:
         return trnhistory, valhistory
 
     def test(self, loader):
+        self.model.eval()
         total_loss, yhat, y = 0, [], []
         with torch.no_grad():
             for Xi, yi in loader:
@@ -102,57 +104,56 @@ class Regressor:
 
 
 class Classifier:
-    def __init__(self, model, optimizer, criterion, device='cpu'):
+    def __init__(self, model, binary=F, lr=1e-3, device='cpu'):
         self.model = model
-        self.optimizer = optimizer
-        self.criterion = criterion
+        self.binary = binary
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        self.criterion = nn.BCEWithLogitsLoss() if binary else nn.CrossEntropyLoss()
         self.device = device
         self.model.to(device)
 
     def train(self, loader, train=T):
-        if train:   self.model.train()
-        total_loss, correct, samplesize, yhat = 0, 0, 0, []
+        self.model.train() if train else self.model.eval()
+        total_loss, correct, samplesize = 0, 0, 0
         for Xi, yi in loader:
-            Xi, yi = Xi.to(self.device), yi.to(self.device)
+            # Xi, yi = Xi.to(self.device), yi.to(self.device)
             prd = self.model(Xi)
-            loss = self.criterion(prd, yi.squeeze())
+            loss = self.criterion(prd, yi)
             if train:
                 self.optimizer.zero_grad(); loss.backward();    self.optimizer.step()
             total_loss += float(loss.item())
-            prd_ = prd.detach().argmax(dim=-1)
-            correct += (prd_ == yi.squeeze()).sum().item()
+            prd_ = (prd.detach() > .5) if self.binary else\
+                prd.detach().argmax(dim=-1, keppdim=T)
+            correct += (prd_ == yi).sum().item()
             samplesize += yi.size(0)
-            yhat.append(prd_.cpu())
-        total_loss /= len(loader)
-        accuracy = correct / samplesize
-        return total_loss, accuracy, torch.cat(yhat, dim=0)
+        return total_loss / len(loader), correct / samplesize
 
     def eval(self, loader):
-        self.model.eval()
         with torch.no_grad():
             return self.train(loader, train=F)
-        
-    def run(self, trnloader, valloader, n_epoch, early_stop, plot_from=0):
+    
+    def run(self, trnloader, valloader, n_epoch, n_print=None, early_stop=None):
         t0 = time.time()
         n = len(str(n_epoch))
-        best_model, best_epoch, min_loss = None, np.inf, np.inf
+        best_model, best_epoch, minloss = None, np.inf, np.inf
         trnlosses, vallosses, trnaccs, valaccs = [], [], [], []
-        for e in tqdm(range(n_epoch)):
-            trnloss, trnacc, _ = self.train(trnloader)
-            valloss, valacc, _ = self.eval(valloader)
+        for e in range(n_epoch):
+            trnloss, trnacc = self.train(trnloader)
+            valloss, valacc = self.eval(valloader)
             trnlosses.append(trnloss)
             vallosses.append(valloss)
             trnaccs.append(trnacc)
             valaccs.append(valacc)
-            if valloss < min_loss:
-                min_loss = valloss
-                best_model = copy.deepcopy(self.model.state_dict())
-                best_epoch = e
-                print(f'Epoch {e:{n}d} | TrnLoss {trnloss:.3e} | ValLoss {valloss:.3e}'
-                      f' | TrnAcc {trnacc:.3f} | ValAcc {valacc:.3f} ({elapsed(t0)})')
-            if early_stop and e-best_epoch > early_stop:
-                print(f'\nEpoch {e:{n}d} | No improvement during last {early_stop} epochs (total {elapsed(t0)})'
-                      f'\nBest Epoch {best_epoch:{n}d} | ValLoss {min_loss:.3e}')
+            if n_print and (e + 1) % n_print == 0:
+                print(f'Epoch {e+1:{n}d}: TrnLoss {trnloss:.3e}, ValLoss {valloss:.3e}, MinLoss {minloss:.3e}, '
+                      f'TrnAcc {trnacc:.3f}, ValAcc {valacc:.3f} ({elapsed(t0)})')
+            if valloss < minloss:
+                minloss = valloss
+                best_epoch, best_model = e, copy.deepcopy(self.model.state_dict())
+            if early_stop and e - best_epoch > early_stop:
+                print(f'\nEpoch {e+1:{n}d}: No improvement during last {early_stop} epochs')
                 break
+        print(f'\nEpoch {best_epoch+1:{n}d}: TrnLoss {trnlosses[best_epoch]:.3e}, ValLoss {vallosses[best_epoch]:.3e}, '
+              f'TrnAcc {trnaccs[best_epoch]:.3f}, ValAcc {valaccs[best_epoch]:.3f} ({elapsed(t0)})')
         self.model.load_state_dict(best_model)
         plot_loss_and_acc(trnlosses, vallosses, trnaccs, valaccs)

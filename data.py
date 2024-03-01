@@ -14,6 +14,10 @@ def plot(x):
 
 def get_dataloader(X, y, batch_size=256, shuffle=F):
     return DataLoader(TensorDataset(X, y), batch_size=batch_size, shuffle=shuffle)
+def get_dataloaders(Xtrn, Xval, Xtst, ytrn, yval, ytst, batch_size=256):
+    return (DataLoader(TensorDataset(Xtrn, ytrn), batch_size=batch_size, shuffle=T),
+            DataLoader(TensorDataset(Xval, yval), batch_size=batch_size, shuffle=F),
+            DataLoader(TensorDataset(Xtst, ytst), batch_size=batch_size, shuffle=F))
 
 def get_loaders(Xtrn, ytrn, Xtst, ytst, val_ratio=None, batch_size=256):
     if val_ratio:
@@ -29,6 +33,9 @@ def get_loaders(Xtrn, ytrn, Xtst, ytst, val_ratio=None, batch_size=256):
 def getCaliforniaHousing(ratios=(6, 2, 2)):
     from sklearn.datasets import fetch_california_housing
     ds = fetch_california_housing()
+    return get_trn_val_tst(ds, ratios)
+
+def get_trn_val_tst(ds, ratios):
     X, y = ds.data, ds.target
     print(f'Original data shape: {X.shape}, {y.shape}')
     test_size = ratios[-1] / sum(ratios)
@@ -44,12 +51,13 @@ def getCaliforniaHousing(ratios=(6, 2, 2)):
     ytst = torch.tensor(ytst).float().unsqueeze(1)
     print(f'Trn: {Xtrn.shape}, {ytrn.shape}')
     print(f'Val: {Xval.shape}, {yval.shape}')
-    print(f'Tst: {Xtst.shape}, {ytst.shape}')
+    print(f'Tst: {Xtst.shape}, {ytst.shape}\n')
     return Xtrn, Xval, Xtst, ytrn, yval, ytst
 
-def getWisconsinCancer():
+def getWisconsinCancer(ratios=(6, 2, 2)):
     from sklearn.datasets import load_breast_cancer
     ds = load_breast_cancer()
+    return get_trn_val_tst(ds, ratios)
 
 
 def getMNIST():     # val_ratio=.2, batch_size=256
