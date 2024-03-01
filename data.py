@@ -26,13 +26,15 @@ def get_loaders(Xtrn, ytrn, Xtst, ytst, val_ratio=None, batch_size=256):
     return (trnloader, valloader, tstloader) if val_ratio else (
         trnloader, tstloader)
 
-def getCaliforniaHousing():
+def getCaliforniaHousing(ratios=(6, 2, 2)):
     from sklearn.datasets import fetch_california_housing
     ds = fetch_california_housing()
     X, y = ds.data, ds.target
     print(f'Original data shape: {X.shape}, {y.shape}')
-    Xtrn, Xtst, ytrn, ytst = train_test_split(X, y, test_size=.2)
-    Xtrn, Xval, ytrn, yval = train_test_split(Xtrn, ytrn, test_size=.25)
+    test_size = ratios[-1] / sum(ratios)
+    Xtrn, Xtst, ytrn, ytst = train_test_split(X, y, test_size=test_size)
+    test_size = ratios[1] / sum(ratios[:-1])
+    Xtrn, Xval, ytrn, yval = train_test_split(Xtrn, ytrn, test_size=test_size)
     scaler = StandardScaler()
     Xtrn = torch.tensor(scaler.fit_transform(Xtrn)).float()
     Xval = torch.tensor(scaler.transform(Xval)).float()
@@ -44,6 +46,10 @@ def getCaliforniaHousing():
     print(f'Val: {Xval.shape}, {yval.shape}')
     print(f'Tst: {Xtst.shape}, {ytst.shape}')
     return Xtrn, Xval, Xtst, ytrn, yval, ytst
+
+def getWisconsinCancer():
+    from sklearn.datasets import load_breast_cancer
+    ds = load_breast_cancer()
 
 
 def getMNIST():     # val_ratio=.2, batch_size=256
