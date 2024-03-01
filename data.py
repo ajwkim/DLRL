@@ -35,13 +35,17 @@ def getCaliforniaHousing(ratios=(6, 2, 2)):
     ds = fetch_california_housing()
     return get_trn_val_tst(ds, ratios)
 
-def get_trn_val_tst(ds, ratios):
+def get_trn_val_tst(ds, ratios, stratify=F):
     X, y = ds.data, ds.target
     print(f'Original data shape: {X.shape}, {y.shape}')
     test_size = ratios[-1] / sum(ratios)
-    Xtrn, Xtst, ytrn, ytst = train_test_split(X, y, test_size=test_size)
+    Xtrn, Xtst, ytrn, ytst =\
+        train_test_split(X, y, test_size=test_size, stratify=y) if stratify else\
+        train_test_split(X, y, test_size=test_size)
     test_size = ratios[1] / sum(ratios[:-1])
-    Xtrn, Xval, ytrn, yval = train_test_split(Xtrn, ytrn, test_size=test_size)
+    Xtrn, Xval, ytrn, yval =\
+        train_test_split(Xtrn, ytrn, test_size=test_size, stratify=ytrn) if stratify else\
+        train_test_split(Xtrn, ytrn, test_size=test_size)
     scaler = StandardScaler()
     Xtrn = torch.tensor(scaler.fit_transform(Xtrn)).float()
     Xval = torch.tensor(scaler.transform(Xval)).float()
@@ -57,7 +61,7 @@ def get_trn_val_tst(ds, ratios):
 def getWisconsinCancer(ratios=(6, 2, 2)):
     from sklearn.datasets import load_breast_cancer
     ds = load_breast_cancer()
-    return get_trn_val_tst(ds, ratios)
+    return get_trn_val_tst(ds, ratios, stratify=T)
 
 
 def getMNIST():     # val_ratio=.2, batch_size=256
