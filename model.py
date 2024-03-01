@@ -3,17 +3,16 @@ import torch
 from torch import nn
 T, F = True, False
 
-def BlockLinear(indim, outdim):
-    return (nn.Linear(indim, outdim),   nn.ReLU(),
-            nn.Linear(outdim, outdim),   nn.ReLU())
+def BlockLinear(indim, outdim, leaky=F):
+    return [nn.Linear(indim, outdim),   nn.LeakyReLU() if leaky else nn.ReLU()]
 
-def linear_regressor(indim, outdim, dim_step=-1):
-    dims = list(range(indim, outdim - dim_step, dim_step))
-    blocks = tuple()
+def linear_regressor(indim, outdim, dim_step=-1, leaky=F):
+    dims = [indim] + [n for n in range(indim-2, outdim+1, dim_step)]
+    blocks = []
     for ind, outd in zip(dims, dims[1:]):
-        blocks += BlockLinear(ind, outd)
+        blocks += BlockLinear(ind, outd, leaky)
     model = nn.Sequential(*blocks, nn.Linear(dims[-1], outdim))
-    print(model)
+    print('model:', model)
     return model
 
 

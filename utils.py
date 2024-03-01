@@ -94,7 +94,7 @@ class Regressor:
                 yhat.append(yhati)
                 y.append(yi)
         total_loss /= len(loader)
-        print(f'TestLoss={total_loss:.4e}')
+        print(f'TestLoss {total_loss:.4e}')
         y, yhat = torch.cat(y), torch.cat(yhat)
         df = pd.DataFrame(
             torch.cat([y, yhat], dim=-1).numpy(), columns='y yhat'.split())
