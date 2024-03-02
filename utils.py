@@ -4,6 +4,8 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from IPython.display import display
+from sklearn.metrics import confusion_matrix
 import torch
 from torch import nn, optim
 T, F = True, False
@@ -28,13 +30,23 @@ def plot_loss_and_acc(trnlosses, vallosses, trnaccs, valaccs):
     ax[1].legend()
     plt.show();
 
+def plot_losses(trnlosses, vallosses, plot_from=10):
+    plt.plot(range(plot_from, len(trnlosses)), trnlosses[plot_from:], label='Trn')
+    plt.plot(range(plot_from, len(vallosses)), vallosses[plot_from:], label='Val')
+    plt.title('Train & Valid Loss History')
+    plt.grid(T)
+    plt.yscale('log')
+    plt.legend()
+    plt.show();
+
+
 class Regressor:
     def __init__(self, model, lr=1e-3, device='cpu'):
         self.model = model
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.criterion = nn.MSELoss()   # nn.functional.mse_loss
         self.device = device
-        self.model.to(device)
+        # self.model.to(device)
 
     def train(self, loader, train=T):
         self.model.train() if train else self.model.eval()
@@ -43,9 +55,7 @@ class Regressor:
             yhati = self.model(Xi)
             loss = self.criterion(yhati, yi)
             if train:
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
+                self.optimizer.zero_grad(); loss.backward(); self.optimizer.step()
             total_loss += float(loss)
         return total_loss / len(loader)
     
@@ -76,13 +86,7 @@ class Regressor:
         print(f'\nEpoch {best_epoch+1:{n}d}: TrnLoss {trnhistory[best_epoch]:.4e}, '
               f'ValLoss {valhistory[best_epoch]:.4e} ({elapsed(t0)})')
         self.model.load_state_dict(best_model)
-        plt.plot(range(plot_from, len(trnhistory)), trnhistory[plot_from:], label='Trn')
-        plt.plot(range(plot_from, len(valhistory)), valhistory[plot_from:], label='Val')
-        plt.title('Train & Valid Loss History')
-        plt.grid(T)
-        plt.yscale('log')
-        plt.legend()
-        plt.show();
+        plot_losses(trnhistory, valhistory)
         return trnhistory, valhistory
 
     def test(self, loader):
@@ -108,9 +112,9 @@ class Classifier:
         self.model = model
         self.binary = binary
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-        self.criterion = nn.BCEWithLogitsLoss() if binary else nn.CrossEntropyLoss()
+        self.criterion = nn.BCEWithLogitsLoss() if binary else nn.NLLLoss()
         self.device = device
-        self.model.to(device)
+        # self.model.to(device)
 
     def train(self, loader, train=T):
         self.model.train() if train else self.model.eval()
@@ -118,12 +122,13 @@ class Classifier:
         for Xi, yi in loader:
             # Xi, yi = Xi.to(self.device), yi.to(self.device)
             prd = self.model(Xi)
-            loss = self.criterion(prd, yi)
+            loss = self.criterion(prd, 
+                                  yi if self.binary else yi.squeeze())
             if train:
                 self.optimizer.zero_grad(); loss.backward();    self.optimizer.step()
             total_loss += float(loss.item())
-            prd_ = (prd.detach() > .5) if self.binary else\
-                prd.detach().argmax(dim=-1, keppdim=T)
+            prd_ = prd.detach() > 0 if self.binary else\
+                   prd.detach().argmax(dim=-1, keepdim=T)
             correct += (prd_ == yi).sum().item()
             samplesize += yi.size(0)
         return total_loss / len(loader), correct / samplesize
@@ -157,3 +162,29 @@ class Classifier:
               f'TrnAcc {trnaccs[best_epoch]:.3f}, ValAcc {valaccs[best_epoch]:.3f} ({elapsed(t0)})')
         self.model.load_state_dict(best_model)
         plot_loss_and_acc(trnlosses, vallosses, trnaccs, valaccs)
+
+    def test(self, loader):
+        self.model.eval()
+        total_loss, yhat, y = 0, [], []
+        with torch.no_grad():
+            for Xi, yi in loader:
+                yhati = self.model(Xi)
+                loss = self.criterion(yhati, 
+                                      yi if self.binary else yi.squeeze())
+                total_loss += loss
+                yhat.append(nn.functional.sigmoid(yhati) if self.binary else 
+                            yhati.argmax(dim=-1, keepdim=T))
+                y.append(yi)
+        total_loss /= len(loader)
+        y, yhat = torch.cat(y), torch.cat(yhat)
+        accuracy = ((yhat > .5) == y).sum().item() if self.binary else\
+                   (yhat == y).sum().item()
+        accuracy /= y.size(0)
+        print(f'TestLoss {total_loss:.4e}, TestAccuracy {accuracy:.3f}')
+        if not self.binary:
+            df_conf = pd.DataFrame(confusion_matrix(y, yhat))
+            print('Confusion Matrix: index(true) Vs. columns(pred)')
+            display(df_conf)
+        df = pd.DataFrame(
+            torch.cat([y, yhat], dim=-1).numpy(), columns='y yhat'.split())
+        sns.histplot(df, x='yhat', hue='y', bins=50, stat='probability');
