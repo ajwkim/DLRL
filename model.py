@@ -3,14 +3,16 @@ import torch
 from torch import nn
 T, F = True, False
 
-def LinearBlock(indim, outdim, leaky=F):
-    return nn.Linear(indim, outdim),   nn.LeakyReLU() if leaky else nn.ReLU()
+def LinearBlock(indim, outdim, leaky=F, batchnorm=F, dropoutp=.5):
+    return (nn.Linear(indim, outdim),   nn.LeakyReLU() if leaky else nn.ReLU(),
+            nn.BatchNorm1d(outdim) if batchnorm else nn.Dropout(dropoutp))
 
-def linear_model(indim, outdim, hiddens, leaky=F, logsoftmax=F):
+def linear_model(indim, outdim, hiddens, leaky=F, batchnorm=F, dropoutp=.5,
+                 logsoftmax=F):
     dims = (indim,) + tuple(hiddens)
     blocks = tuple()
     for ind, outd in zip(dims, dims[1:]):
-        blocks += LinearBlock(ind, outd, leaky)
+        blocks += LinearBlock(ind, outd, leaky, batchnorm, dropoutp)
     model =\
         nn.Sequential(*blocks, nn.Linear(dims[-1], outdim), nn.LogSoftmax(dim=-1)) if logsoftmax else\
         nn.Sequential(*blocks, nn.Linear(dims[-1], outdim))

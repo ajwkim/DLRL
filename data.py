@@ -64,7 +64,7 @@ def get_trn_val_tst(ds, ratios, stratify=F):
     return Xtrn, Xval, Xtst, ytrn, yval, ytst
 
 
-def getMNIST():     # val_ratio=.2, batch_size=256
+def getMNIST(val_ratio=.2, flatten=F):     # val_ratio=.2, batch_size=256
     from torchvision import datasets, transforms
     trn = datasets.MNIST(
         path, train=T, download=T, 
@@ -76,7 +76,10 @@ def getMNIST():     # val_ratio=.2, batch_size=256
     # tst.data : (10000, 28, 28)       / tst.targets : (10000,)
     Xtrn, ytrn = trn.data / 255, trn.targets.unsqueeze(1)           # reshape(len(trn.data), -1)
     Xtst, ytst = tst.data / 255, tst.targets.unsqueeze(1)           # reshape(len(tst.data), -1)
-    Xtrn, Xval, ytrn, yval = train_test_split(Xtrn, ytrn, test_size=.2, stratify=ytrn)
+    if flatten:
+        Xtrn = Xtrn.reshape(Xtrn.size(0), -1)
+        Xtst = Xtst.reshape(Xtst.size(0), -1)
+    Xtrn, Xval, ytrn, yval = train_test_split(Xtrn, ytrn, test_size=val_ratio, stratify=ytrn)
     print(f'{"X.shape":^30}{"X[0].max()":^15}{"y.shape":^20}{"y.max()":^12}')
     print('trn', Xtrn.shape, Xtrn[0].max(), ytrn.shape, ytrn.max())
     print('val', Xval.shape, Xval[0].max(), yval.shape, yval.max())
