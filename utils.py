@@ -74,13 +74,13 @@ class Regressor:
             valloss = self.eval(valloader)
             trnhistory.append(trnloss)
             valhistory.append(valloss)
-            if n_print and (e + 1) % n_print == 0:
-                print(f'Epoch {e+1:{n}d}: TrnLoss {trnloss:.4e}, '
-                      f'ValLoss {valloss:.4e}, MinLoss {minloss:.4e} ({elapsed(t0)})')
             if valloss < minloss:
                 minloss = valloss
                 best_epoch, best_model = e, copy.deepcopy(self.model.state_dict())
-            elif early_stop and e - best_epoch > early_stop:
+            if n_print and (e + 1) % n_print == 0:
+                print(f'Epoch {e+1:{n}d}: TrnLoss {trnloss:.4e}, '
+                      f'ValLoss {valloss:.4e}, MinLoss {minloss:.4e} ({elapsed(t0)})')
+            if early_stop and e - best_epoch > early_stop:
                 print(f'Epoch {e+1:{n}d}: No improvement during last {early_stop} epochs')
                 break
         print(f'\nEpoch {best_epoch+1:{n}d}: TrnLoss {trnhistory[best_epoch]:.4e}, '
@@ -116,10 +116,10 @@ class Classifier:
         self.device = device
         # self.model.to(device)
 
-    def train(self, loader, train=T):
+    def train(self, loader, train=T, use_tqdm=F):
         self.model.train() if train else self.model.eval()
         total_loss, correct, samplesize = 0, 0, 0
-        for Xi, yi in loader:
+        for Xi, yi in tqdm(loader) if use_tqdm else loader:
             # Xi, yi = Xi.to(self.device), yi.to(self.device)
             prd = self.model(Xi)
             loss = self.criterion(prd, 
@@ -149,12 +149,12 @@ class Classifier:
             vallosses.append(valloss)
             trnaccs.append(trnacc)
             valaccs.append(valacc)
-            if n_print and (e + 1) % n_print == 0:
-                print(f'Epoch {e+1:{n}d}: TrnLoss {trnloss:.3e}, ValLoss {valloss:.3e}, MinLoss {minloss:.3e}, '
-                      f'TrnAcc {trnacc:.3f}, ValAcc {valacc:.3f} ({elapsed(t0)})')
             if valloss < minloss:
                 minloss = valloss
                 best_epoch, best_model = e, copy.deepcopy(self.model.state_dict())
+            if n_print and (e + 1) % n_print == 0:
+                print(f'Epoch {e+1:{n}d}: TrnLoss {trnloss:.3e}, ValLoss {valloss:.3e}, MinLoss {minloss:.3e}, '
+                      f'TrnAcc {trnacc:.3f}, ValAcc {valacc:.3f} ({elapsed(t0)})')
             if early_stop and e - best_epoch > early_stop:
                 print(f'\nEpoch {e+1:{n}d}: No improvement during last {early_stop} epochs')
                 break

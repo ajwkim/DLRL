@@ -74,11 +74,38 @@ def getMNIST(val_ratio=.2, flatten=F):     # val_ratio=.2, batch_size=256
         transform=transforms.Compose([transforms.ToTensor()]))
     # trn.data : (60000, 28, 28) 0~255 / trn.targets : (60000,), 0~9
     # tst.data : (10000, 28, 28)       / tst.targets : (10000,)
+    return get_trn_val_tst_img(trn, tst, val_ratio, flatten)
+    # Xtrn, ytrn = trn.data / 255, trn.targets.unsqueeze(1)           # reshape(len(trn.data), -1)
+    # Xtst, ytst = tst.data / 255, tst.targets.unsqueeze(1)           # reshape(len(tst.data), -1)
+    # if flatten:
+    #     Xtrn = Xtrn.reshape(Xtrn.size(0), -1)
+    #     Xtst = Xtst.reshape(Xtst.size(0), -1)
+    # Xtrn, Xval, ytrn, yval = train_test_split(Xtrn, ytrn, test_size=val_ratio, stratify=ytrn)
+    # print(f'{"X.shape":^30}{"X[0].max()":^15}{"y.shape":^20}{"y.max()":^12}')
+    # print('trn', Xtrn.shape, Xtrn[0].max(), ytrn.shape, ytrn.max())
+    # print('val', Xval.shape, Xval[0].max(), yval.shape, yval.max())
+    # print('tst', Xtst.shape, Xtst[0].max(), ytst.shape, ytst.max())
+    # return Xtrn, Xval, Xtst, ytrn, yval, ytst
+
+def getFashionMNIST(val_ratio=.2, flatten=F):     # val_ratio=.2, batch_size=256
+    from torchvision import datasets, transforms
+    trn = datasets.FashionMNIST(
+        path, train=T, download=T, 
+        transform=transforms.Compose([transforms.ToTensor()]))
+    tst = datasets.FashionMNIST(
+        path, train=F, download=T,
+        transform=transforms.Compose([transforms.ToTensor()]))
+    return get_trn_val_tst_img(trn, tst, val_ratio, flatten)
+
+def get_trn_val_tst_img(trn, tst, val_ratio, flatten=F):
     Xtrn, ytrn = trn.data / 255, trn.targets.unsqueeze(1)           # reshape(len(trn.data), -1)
     Xtst, ytst = tst.data / 255, tst.targets.unsqueeze(1)           # reshape(len(tst.data), -1)
     if flatten:
         Xtrn = Xtrn.reshape(Xtrn.size(0), -1)
         Xtst = Xtst.reshape(Xtst.size(0), -1)
+    elif Xtrn.ndim == 3:
+        Xtrn = Xtrn.unsqueeze(1)
+        Xtst = Xtst.unsqueeze(1)
     Xtrn, Xval, ytrn, yval = train_test_split(Xtrn, ytrn, test_size=val_ratio, stratify=ytrn)
     print(f'{"X.shape":^30}{"X[0].max()":^15}{"y.shape":^20}{"y.max()":^12}')
     print('trn', Xtrn.shape, Xtrn[0].max(), ytrn.shape, ytrn.max())
